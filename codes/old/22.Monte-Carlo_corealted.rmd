@@ -1,0 +1,73 @@
+rm(list = ls())
+
+---
+title: "Monte Carlo Simulation Using For Loops (elasticity/standard error)"
+     : two variables appear in the elasticity equation, cov has considered
+output: html_notebook
+---
+
+This is a simulation design. 
+
+```{r}
+library(pacman)
+pacman::p_load(data.table, fixest, stargazer, dplyr, magrittr, faux, MASS) 
+```
+
+Model: 
+$$
+Y =  \beta_1+\beta_2*ln(\Dist)+U
+$$
+
+```{r OLS-n-100-M-100000}
+
+## Parameters and seed
+set.seed(1)  # Seed
+n = 1000     # Sample size
+M = 100000   # Number of experiments/iterations
+b1 = 0.248   # beta 1
+b2 = -0.076  # beta 2
+r = 0 # correlation
+Sigma = matrix(c(0.2^2,r,r,0.4), nrow = 2) # variance variance matrix
+
+
+
+## Storage 
+slope_1 <- rep(0,M)
+
+
+## Begin Monte Carlo
+
+for (i in 1:M){ #  M is the number of iterations
+  
+  # Generate data
+  U_i = rnorm(n, mean = 0, sd = 1) # Error
+  data = mvrnorm(n, mu=c(b1, b2), Sigma, empirical=TRUE)
+  X1_i = data[, 1]
+  X2_i = data[, 2]
+  Y_i = X1_i + X2_i*3.912023 + U_i  # Dependent variable #15.75 = average WQ
+  
+  # Formulate data.table
+  data_i = data.table(X1 = X1_i,X2 = X2_i, Y = Y_i)
+  
+    # Run regressions
+  ols_i <- lm(data = data_i, Y ~ 1)
+  
+  # Extract slope coefficient and save
+  slope_1[i] <- ols_i$coefficients[1]
+}
+
+
+# Summary statistics
+estimates_DT <- data.table(beta_1 = slope_1)
+stargazer(estimates_DT[, c("beta_1")], type = "text", digits = 5)
+
+
+
+
+```
+```{r}
+sd(Y_i)
+
+
+```
+

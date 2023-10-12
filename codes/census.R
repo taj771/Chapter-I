@@ -34,12 +34,13 @@ cen_vec16 <- list_census_vectors("CA16")
 
 # vectors of interest
 
-vectors = c("v_CA16_404","v_CA16_4896","v_CA16_401")
+vectors = c("v_CA16_404","v_CA16_4896","v_CA16_401","v_CA16_4895")
 
 # Alberta
 ab_census_da <- get_census(dataset='CA16', regions=list(PR="48"),
                           vectors=paste0(vectors),
                           level='DA', use_cache = FALSE, geo_format = 'sf', quiet = TRUE)
+
 # Saskatchewan
 sk_census_da <- get_census(dataset='CA16', regions=list(PR="47"),
                            vectors=paste0(vectors),

@@ -4,3 +4,7 @@
 .Ruserdata
 metadata/
 results/
+Census/
+census_cache/
+Building_footprint/
+Simulation/

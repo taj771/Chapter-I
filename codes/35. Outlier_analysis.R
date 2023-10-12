@@ -20,7 +20,26 @@ pacman::p_load(
 #load data
 df <- read.csv("./metadata/meta_dataset_water_clarity_TJ.csv")
 
+
 # plot graph to elicit outliers
+
+data <- df%>%
+  select(wqelast)
+
+
+
+my_variable=c(data$wqelast)
+
+layout(mat = matrix(c(1,2),2,1, byrow=TRUE),  height = c(1,8))
+
+par(mar=c(0, 3.1, 1.1, 2.1))
+
+boxplot(my_variable , horizontal=TRUE , ylim=c(-2,8), xaxt="n" , col=rgb(0.8,0.8,0,0.5) , frame=F)
+par(mar=c(4, 3.1, 1.1, 2.1))
+hist(my_variable , breaks=500 , col=rgb(0.2,0.8,0.5,0.5) , border=F , main="" , xlab="Elasticity", xlim=c(-2,8))
+
+
+
 p <- ggplot(df, aes(x = elast_sim)) +
   geom_histogram(alpha = 20, binwidth = 0.1) + 
   scale_x_continuous(limits = c(-5, 10))+
@@ -40,7 +59,7 @@ df.nwf <- df[which(df$distbuf == 2), ]
 
 
 df.wf.re <- df.wf%>%
-  mutate(vi = 1/sampsize)%>% # use sample size instead of variance
+  mutate(vi = log(sampsize))%>% # use sample size instead of variance
   #filter(vi>0)%>%
   group_by(studyid, geog) %>%
   mutate(cluster = cur_group_id()) %>%
@@ -48,7 +67,7 @@ df.wf.re <- df.wf%>%
   rownames_to_column("id")
 
 df.nwf.re <- df.nwf%>%
-  mutate(vi = 1/sampsize)%>% # use sample size instead of variance
+  mutate(vi = log(sampsize))%>% # use sample size instead of variance
   #filter(vi>0)%>%
   group_by(studyid, geog) %>%
   mutate(cluster = cur_group_id()) %>%
@@ -73,7 +92,7 @@ rstud_wf <- mutate(rstud_wf, id = row_number())
 
 
 rstud_wf%>%
-  ggplot(aes(x=obsid,y=resid))+
+  ggplot(aes(x=id,y=resid))+
   ylab("rstudent")+
   geom_line()+
   geom_point()+

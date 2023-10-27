@@ -21,116 +21,151 @@ pacman::p_load(
 # load data - with outliers 
 df <- read.csv("./metadata/meta_dataset_water_clarity_TJ.csv")
 
-re_w <- read.csv("./metadata/RE_weight_withoutdiscrim_wf_nwf.csv") # weights in RE model (just to compare weights)
-
-
-
-# set up data set with required variables and necessary weighting schemes
-
-# waterfront
 df <- df%>%
   select(obsid,studyid,geog,wqelast,sampsize)%>%
   drop_na(sampsize)%>% # drop obs without sample size
   drop_na(wqelast)%>% # drop obs without wqelast
   mutate(vi = log(sampsize))%>%
-  mutate(id = row_number())%>% # use to attach RE weights
   group_by(studyid, geog)%>%
   mutate(cluster = cur_group_id())%>%
   mutate(unweight_w = 1)%>% # un-weighted scheme
   group_by(cluster)%>%
   mutate(count = n())%>%
-  mutate(cluster_w = 1/count)%>% # cluster adjusted weight
-  select(-count)%>%
-  mutate(cluster_ss_w = cluster_w*log(sampsize))%>%
-  left_join(re_w)
+  rename("k" = "count")%>%
+  mutate(cluster_w = 1/k)%>% # cluster adjusted weight
+  mutate(cluster_ss_w = cluster_w*log(sampsize))
 
 
 ###############################################################################
-# Transfer  error Fixed effect unweighted - waterfront
-# loop - drop each observation and calculate elasticity for each observation
-result <- list()
+# Unweighted fixed effect
+result_1 <- list()
+result_2 <- list()
+
 #loop through obsid and extract betas
-for(i in unique(df$id)){
+for(i in unique(df$cluster)){
   #construct linear model (metafor package)
-  elas <- rma(yi = wqelast, vi, data = subset(df, df$id != i), method="EE", weights=unweight_w, level = 95)
+  elas_1 <- rma(yi = wqelast, vi, data = subset(df, df$cluster == i), method="EE", weights=unweight_w, level = 95)
+  elas_2 <- rma(yi = wqelast, vi, data = subset(df, df$cluster != i), method="EE", weights=unweight_w, level = 95)
+  
   #create data.frame containing intercept left out and coefficient
-  result.dt <- data.frame(beta = coef(elas),
-                          cluster = i)
+  result.dt_1 <- data.frame(beta_1 = coef(elas_1),
+                            cluster = i)
+  result.dt_2 <- data.frame(beta_2 = coef(elas_2),
+                            cluster = i)
   #bind to list
-  result[[i]] <- result.dt
+  result_1[[i]] <- result.dt_1
+  result_2[[i]] <- result.dt_2
+  
+  
 }
 
 #bind to data.frame
-result <- do.call(rbind, result)
-head(result)
-# left_join - to calculate transfer error
-transfer_error <- left_join(result,df , by = "cluster")%>%
-  select(wqelast,beta,unweight_w)
-error_wf_re <- mutate(transfer_error,T_error = abs((beta-wqelast*unweight_w)/beta)*100)
+result_1 <- do.call(rbind, result_1)
+result_2 <- do.call(rbind, result_2)
 
-median(error_wf_re$T_error, na.rm = T)
+head(result_1)
+head(result_2)
 
-###########################################################################
-# Transfer  error Fixed effect fixed effect - cluster adjusted - waterfront
-# loop - drop each observation and calculate elasticity for each observation
+final <- result_1%>%
+  left_join(result_2)%>%
+  mutate(error = abs((beta_2-beta_1)/beta_1)*100)
 
-result <- list()
+
+fixed_efect <- median(final$error, na.rm = T)
+
+##############################################################################
+# cluster adjusted - fixed effect
+result_1 <- list()
+result_2 <- list()
+
 #loop through obsid and extract betas
-for(i in unique(df$id)){
+for(i in unique(df$cluster)){
   #construct linear model (metafor package)
-  elas <- rma(yi = wqelast, vi, data=subset(df, df$id != i), method="EE",weights=cluster_w,level = 95)
+  elas_1 <- rma(yi = wqelast, vi, data=subset(df, df$cluster == i), method="EE",weights=cluster_w,level = 95)
+  elas_2 <- rma(yi = wqelast, vi, data=subset(df, df$cluster != i), method="EE",weights=cluster_w,level = 95)
+  
   #create data.frame containing intercept left out and coefficient
-  result.dt <- data.frame(beta = coef(elas),
-                          cluster = i)
+  result.dt_1 <- data.frame(beta_1 = coef(elas_1),
+                            cluster = i)
+  result.dt_2 <- data.frame(beta_2 = coef(elas_2),
+                            cluster = i)
   #bind to list
-  result[[i]] <- result.dt
+  result_1[[i]] <- result.dt_1
+  result_2[[i]] <- result.dt_2
+  
+  
 }
 
 #bind to data.frame
-result <- do.call(rbind, result)
-head(result)
-# left_join - to calculate transfer error
-transfer_error <- left_join(result,df, by = "cluster")%>%
-  select(wqelast,beta,cluster_w)
-error_wf_re <- mutate(transfer_error,T_error = abs((beta - (wqelast*cluster_w))/beta)*100)
+result_1 <- do.call(rbind, result_1)
+result_2 <- do.call(rbind, result_2)
 
-median(error_wf_re$T_error, na.rm = T)
+head(result_1)
+head(result_2)
 
-###############################################################################
-# Transfer  error Fixed effect fixed effect - variance cluster adjusted - waterfront
-# loop - drop each observation and calculate elasticity for each observation
+final <- result_1%>%
+  left_join(result_2)%>%
+  mutate(error = abs((beta_2-beta_1)/beta_1)*100)
 
-result <- list()
+
+cluster_adjusted <- median(final$error, na.rm = T)
+
+##############################################################################
+# cluster sample size adjusted - fixed effect
+
+result_1 <- list()
+result_2 <- list()
+
 #loop through obsid and extract betas
-for(i in unique(df$id)){
+for(i in unique(df$cluster)){
   #construct linear model (metafor package)
-  elas <- rma(yi = wqelast, vi, data=subset(df, df$id != i), method="EE",weights=cluster_ss_w,level = 95)
+  elas_1 <- rma(yi = wqelast, vi, data=subset(df, df$cluster == i), method="EE",weights=cluster_ss_w,level = 95)
+  elas_2 <- rma(yi = wqelast, vi, data=subset(df, df$cluster != i), method="EE",weights=cluster_ss_w,level = 95)
+  
   #create data.frame containing intercept left out and coefficient
-  result.dt <- data.frame(beta = coef(elas),
-                          cluster = i)
+  result.dt_1 <- data.frame(beta_1 = coef(elas_1),
+                            cluster = i)
+  result.dt_2 <- data.frame(beta_2 = coef(elas_2),
+                            cluster = i)
   #bind to list
-  result[[i]] <- result.dt
+  result_1[[i]] <- result.dt_1
+  result_2[[i]] <- result.dt_2
+  
+  
 }
 
 #bind to data.frame
-result <- do.call(rbind, result)
-head(result)
-# left_join - to calculate transfer error
-transfer_error <- left_join(result,df, by = "cluster")%>%
-  select(wqelast,beta,cluster_ss_w)
-error_wf_re <- mutate(transfer_error,T_error = abs((beta-wqelast*cluster_ss_w)/beta)*100)
+result_1 <- do.call(rbind, result_1)
+result_2 <- do.call(rbind, result_2)
 
-median(error_wf_re$T_error, na.rm = T)
-#####################################################################
+head(result_1)
+head(result_2)
+
+final <- result_1%>%
+  left_join(result_2)%>%
+  mutate(error = abs((beta_2-beta_1)/beta_1)*100)
+
+
+cluster_sample_size_adjusted <- median(final$error, na.rm = T)
+##############################################################################
+
+# Random Effect model
+
+df_1 <- df%>%
+  subset(k==1)
+
+df_2 <- df%>%
+  subset(k != 1)
+
 
 # Transfer  error Random effect
 # loop - drop each observation and calculate elasticity for each observation
 
 result <- list()
 #loop through obsid and extract betas
-for(i in unique(df$id)){
+for(i in unique(df_1$cluster)){
   #construct linear model (metafor package)
-  elas <- rma.mv(yi = wqelast, vi, random = ~ 1 | cluster/obsid, data=subset(df, df$id != i), level = 95)
+  elas <- rma(yi = wqelast, vi, data=subset(df_1, df_1$cluster == i), level = 95)
   #create data.frame containing intercept left out and coefficient
   result.dt <- data.frame(beta = coef(elas),
                           cluster = i)
@@ -139,14 +174,55 @@ for(i in unique(df$id)){
 }
 
 #bind to data.frame
+result_1 <- do.call(rbind, result)
+head(result_1)
+
+result <- list()
+#loop through obsid and extract betas
+for(i in unique(df_2$cluster)){
+  #construct linear model (metafor package)
+  elas <- rma.mv(yi = wqelast, vi, random = ~ 1 |cluster/ obsid, data=subset(df_2, df_2$cluster == i), level = 95)
+  #create data.frame containing intercept left out and coefficient
+  result.dt <- data.frame(beta = coef(elas),
+                          cluster = i)
+  #bind to list
+  result[[i]] <- result.dt
+}
+
+#bind to data.frame
+result_2 <- do.call(rbind, result)
+head(result_2)
+
+df_12 <- rbind(result_1,result_2)%>%
+  rename(beta_1 = beta)
+
+# Transfer  error Random effect
+# loop - drop each observation and calculate elasticity for each observation
+
+result <- list()
+#loop through obsid and extract betas
+for(i in unique(df$cluster)){
+  #construct linear model (metafor package)
+  elas <- rma.mv(yi = wqelast, vi, random = ~ 1 | cluster/obsid, data=subset(df, df$cluster != i), level = 95)
+  #create data.frame containing intercept left out and coefficient
+  result.dt <- data.frame(beta = coef(elas),
+                          cluster = i)
+  #bind to list
+  result[[i]] <- result.dt
+}
+
+
+#bind to data.frame
 result <- do.call(rbind, result)
 head(result)
-# left_join - to calculate transfer error
-transfer_error <- left_join(result,df , by = "cluster")%>%
-  select(wqelast,beta,re_w)
-error_wf_re <- mutate(transfer_error,T_error = abs((beta - wqelast*re_w)/beta )*100)
 
-median(error_wf_re$T_error, na.rm = T)
+
+final <-result%>%
+  left_join(df_12)%>%
+  mutate(error = abs((beta-beta_1)/beta_1)*100)
+
+
+Random_effect<- median(final$error, na.rm = T)
 
 
 ##############################################################################

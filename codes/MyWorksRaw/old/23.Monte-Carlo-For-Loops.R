@@ -1,0 +1,62 @@
+---
+title: "Monte Carlo Simulation Using For Loops (OLS)"
+output: html_notebook
+---
+
+Hello this is a simulation design. 
+
+```{r}
+library(pacman)
+pacman::p_load(data.table, fixest, stargazer, dplyr, magrittr) 
+```
+
+Model: 
+$$
+Y = \beta_0 + \beta_1X + U
+$$
+
+```{r OLS-n-100-M-500}
+
+## Parameters and seed
+beta_0 = 1.5 # Intercept 
+beta_1 = 2.0 # Slope
+set.seed(1)  # Seed
+n = 1000     # Sample size
+M = 500      # Number of experiments/iterations
+
+## Storage 
+slope_DT <- rep(0,M)
+intercept_DT <- rep(0,M)
+
+## Begin Monte Carlo
+
+for (i in 1:M){ #  M is the number of iterations
+  
+  # Generate data
+  U_i = rnorm(n, mean = 0, sd = 2) # Error
+  X_i = rnorm(n, mean = 5, sd = 5) # Independent variable
+  Y_i = beta_0 + beta_1*X_i + U_i  # Dependent variable
+  
+  # Formulate data.table
+  data_i = data.table(Y = Y_i, X = X_i)
+  
+  # Run regressions
+  ols_i <- fixest::feols(data = data_i, Y ~ X)
+  
+  # Extract slope coefficient and save
+  slope_DT[i] <- ols_i$coefficients[2]
+  intercept_DT[i] <- ols_i$coefficients[1]
+  
+}
+
+
+# Summary statistics
+estimates_DT <- data.table(beta_1 = slope_DT, beta_0 = intercept_DT)
+stargazer(estimates_DT[, c("beta_1", "beta_0")], type = "text")
+
+# Visual inspection
+hist(estimates_DT[, beta_1], xlim = c(1.5,2.5))
+
+
+```
+

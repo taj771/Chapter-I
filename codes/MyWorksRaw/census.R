@@ -25,8 +25,8 @@ options(cancensus.cache_path = "./census_cache")
 cen_data <- list_census_datasets()
 cen_region <- list_census_regions("CA21")
 cen_vec21 <- list_census_vectors("CA21")
-cen_vec16 <- list_census_vectors("CA16")
-list_census_regions("CA16")
+#cen_vec16 <- list_census_vectors("CA16")
+#list_census_regions("CA16")
 
 # since most of the layers are not available at CA_21 layer will depend on CA_16
 # for now and later will update as they become public available
@@ -36,7 +36,7 @@ list_census_regions("CA16")
 # vectors of interest
 
 #2020
-vectors = c("v_CA16_404","v_CA16_4896","v_CA16_401","v_CA16_4895")
+#vectors = c("v_CA16_404","v_CA16_4896","v_CA16_401","v_CA16_4895")
 #2021
 vectors = c("v_CA21_4312","v_CA21_4311","v_CA21_4","v_CA21_8",
             "v_CA21_452","v_CA21_983","v_CA21_5847")
@@ -203,4 +203,23 @@ st_write(nb_census_da, "./Census/NB/census_nb_da.shp",delete_layer = T)
 st_write(mb_census_da, "./Census/MB/census_mb_da.shp",delete_layer = T)
 st_write(bc_census_da, "./Census/BC/census_bc_da.shp",delete_layer = T)
 st_write(on_census_da, "./Census/ON/census_on_da.shp",delete_layer = T)
+
+# Read census - for regreession 
+
+ab <- st_read("./Census/AB/census_ab_da.shp")
+sk <- st_read("./Census/SK/census_sk_da.shp")
+nl <- st_read("./Census/NL/census_nl_da.shp")
+ns <- st_read("./Census/NS/census_ns_da.shp")
+qc <- st_read("./Census/QC/census_qc_da.shp")
+pe <- st_read("./Census/PE/census_pe_da.shp")
+nb <- st_read("./Census/NB/census_nb_da.shp")
+mb <- st_read("./Census/MB/census_mb_da.shp")
+bc <- st_read("./Census/BC/census_bc_da.shp")
+on <- st_read("./Census/ON/census_on_da.shp")
+
+
+df <- rbind(ab,sk,nl,ns,qc,pe,nb,mb,bc,on)
+
+st_write(df, "./Census/CAN/census_can_da.shp",delete_layer = T)
+
 

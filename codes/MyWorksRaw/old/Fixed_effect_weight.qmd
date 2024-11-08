@@ -1,0 +1,503 @@
+---
+title: "Notes on Mean Elasticity"
+format: pdf
+editor: visual
+author: "TJ & Pat"
+---
+
+## Mean elasticity and appropriate weighting scheme
+
+We estimate the mean elasticty with the elasticities derive at 100 meters and 400 meters disatnce buffers based on following weighting scheme.
+
+1.  Unweighted (fixed effect)
+2.  Cluster weighted (fixed effect) - where cluster define as combination of unique study and geog (area)
+3.  cluster sample size weight (fixed effect)
+4.  Random efefct model
+
+I will bring our intial results here and discuss where we need to work on
+
+```{r}
+#| echo: false
+#| warning: false
+
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(metafor)
+library(modelsummary)
+
+df_2 <- read.csv("./metadata/meta_data_all_distance.csv")
+
+df_100 <- df_2%>%
+  #filter(study_name != "Wolf et al 2022")%>%
+  filter(dist==240)%>% # filter elasticitlt at appropriate distance
+  mutate(obsid = row_number())%>%
+  group_by(study_name,geog)%>% # create cluster 
+  mutate(cluster_id = cur_group_id())%>%
+  ungroup()%>%
+  mutate(vi = 1/sampsize)%>% # define proxy of variance as inverse sample size
+  mutate(vi_log = 1/log(sampsize))%>% # define proxy of variance as inverse log(sample size)
+  group_by(cluster_id) %>%
+  mutate(count = n())%>% # 
+  mutate(w_1 = (1/count))%>% # define first weight - cluster weight based on the number of observations within cluster
+  mutate(log_ss = log(sampsize))%>%
+  mutate(log_ss_within_clus = sum(log_ss))%>% # for cluster sample size weight - sum sample size withi cluster
+  mutate(w_2 = log(sampsize)/log_ss_within_clus)%>% # weight define as ratio between log(sample size)/log(sum of sample size within cluster)
+  ungroup()
+
+
+df_400 <- df_2%>%
+  #filter(study_name != "Wolf et al 2022")%>%
+  filter(dist==740)%>% # filter elasticitlt at appropriate distance
+  mutate(obsid = row_number())%>%
+  group_by(study_name,geog)%>%  # create cluster
+  mutate(cluster_id = cur_group_id())%>%
+  ungroup()%>%
+  mutate(vi = 1/sampsize)%>% # define proxy of variance as inverse sample size
+  mutate(vi_log = 1/log(sampsize))%>% # define proxy of variance as inverse log(sample size)
+  group_by(cluster_id) %>%
+  mutate(count = n())%>%
+  mutate(w_1 = (1/count))%>% # define first weight - cluster weight based on the number of observations within cluster
+  mutate(log_ss = log(sampsize))%>%
+  mutate(log_ss_within_clus = sum(log_ss))%>% # for cluster sample size weight - sum sample size withi cluster
+  mutate(w_2 = log(sampsize)/log_ss_within_clus)%>% # weight define as ratio between log(sample size)/log(sum of sample size within cluster)
+  ungroup()
+
+
+panels <- list(
+  "Waterfront distance-100m" = list(
+    "Unweighted" = rma(yi = elast, vi=vi, data=df_100, method="EE", weighted=FALSE, level = 95),
+    "Cluster weighted " = rma(yi = elast, vi=vi, data=df_100, method="EE",weighted=T,weights = w_1, level = 95),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= rma(yi = cw_elast, vi, data=df_wf, method="EE",weighted=T, level = 95),
+    "Cluster sample size weight"= rma(yi = elast, vi=vi, data=df_100, method="EE",weighted=T,weights =w_2, level = 95),
+    #"Random effect (sample size variance)"= rma.mv(yi = cw_elast, vi, random = ~ 1 | cluster_id/obsid, data=df_wf),
+    "Random effect (log(sample size variance))"= rma.mv(yi = elast, vi, random = ~ 1 | cluster_id/obsid, data=df_100)
+    
+  ),
+  
+  "Waterfront distance-400m" = list(
+    "Fixed efffet - Unweighted" = rma(yi = elast, vi=vi, data=df_400, method="EE", weighted=FALSE, level = 95),
+    "Fixed effect - Cluster weighted " = rma(yi = elast, vi=vi, data=df_400, method="EE",weighted=T,weights = w_1, level = 95),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= rma(yi = cw_elast, vi, data=df_nwf, method="EE",weighted=T, level = 95),
+    "Fixed effect - Cluster weighted - Varance Adjusted (log(sample size))"= rma(yi = elast, vi=vi, data=df_400, method="EE",weighted=T,weights = w_2, level = 95),
+    #"Random effect (sample size variance)"= rma.mv(yi = cw_elast, vi, random = ~ 1 | cluster_id/obsid, data=df_nwf),
+    "Random effect (log(sample size variance))"= rma.mv(yi = elast, vi, random = ~ 1 | cluster_id/obsid, data=df_400, control=list(rel.tol=1e-8))
+  )
+  )
+
+
+panels_robu <- list(
+  "Waterfront distance-100m" = list(
+    "Unweighted" = robust(panels$`Waterfront distance-100m`$`Unweighted`, cluster = obsid),
+    "Cluster weighted " = robust(panels$`Waterfront distance-100m`$`Cluster weighted `, cluster = cluster_id),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= robust(panels$Waterfront$`Fixed effect - Cluster weighted - Varance Adjusted (sample size)`, cluster = cluster_id),
+    "Cluster sample size weight"= robust(panels$`Waterfront distance-100m`$`Cluster sample size weight`, cluster = cluster_id),
+    #"Random effect (sample size variance)"= robust(panels$Waterfront$`Random effect (sample size variance)`, cluster = cluster_id),
+    "Random effect "= robust(panels$`Waterfront distance-100m`$`Random effect (log(sample size variance))`, cluster = cluster_id)
+  ),
+  "Waterfront distance-400m" = list(
+    "Unweighted" =robust(panels$`Waterfront distance-400m`$`Fixed efffet - Unweighted`, cluster = obsid),
+    "Cluster weighted " = robust(panels$`Waterfront distance-400m`$`Fixed effect - Cluster weighted `, cluster = cluster_id),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= robust(panels$`Non-waterfront`$`Fixed effect - Cluster weighted - Varance Adjusted (sample size)`, cluster = cluster_id),
+    "Cluster sample size weight"= robust(panels$`Waterfront distance-400m`$`Fixed effect - Cluster weighted - Varance Adjusted (log(sample size))`, cluster = cluster_id),
+    #"Random effect (sample size variance)"= robust(panels$`Non-waterfront`$`Random effect (sample size variance)`, cluster = cluster_id),
+    "Random effect"= robust(panels$`Waterfront distance-400m`$`Random effect (log(sample size variance))`, cluster = cluster_id)
+    
+  )
+)
+
+
+
+f <- function(x) format(round(x, 3), big.mark=",")
+
+
+gm <- list(
+  list("raw" = "nobs", "clean" = "Num. of Obs.", "fmt" = f)
+)
+
+
+modelsummary(
+  panels_robu,
+  shape = "rbind",
+  stars = TRUE, gof_map = gm)
+
+
+
+
+```
+
+\pagebreak
+
+There are a few contradicting points here that we need to consider:
+
+1.  The waterfront distance bin at 400 meters has higher estimations compared to the closer distance bins at 100 meters. I assess that this is largely due to the observations from Wolf et al. (2022). In Wolf et al. (2022), they define the waterfront dummy as 500 meters in their hedonic regression, which leads to their estimations extending up to 500 meters. I will revisit this point by estimating the mean elasticity beyond 500 meters.
+
+2.Our estimations remain higher compared to those in Guignet et al. (2022). For instance, Guignet et al. (2022) estimated mean elasticities at 0.109-0.206, varying based on the model specification for the waterfront distance bin (estimated at 50 meters). Similarly, for non-waterfront, they estimated elasticities at 0.026-0.046, varying based on the model specification (estimated at 250 meters)
+
+Wolf et al. (2022) estimated 27 hedonic models for 27 counties in Wisconsin. For each county, they have 4 model specifications, and based on our cluster definition of unique study + geography, Wolf's paper gives us 27 clusters. (Based on this cluster specification, we have a total of 120 clusters for waterfront and 49 for near waterfront.) Therefore, I feel the definition of clusters gives extra weight to Wolf's paper (specially in nearwaterfront distance bin), and I redefined the clusters as unique studies. I think this makes sense because even though there are studies within the same state in the US, most are from different regions. So, I redefined the clusters as unique studies and estimated the models. This will aggregate Wolf's 27 clusters into one, where our total number of clusters equals the total number of unique studies. The results are as follows:
+
+
+\newpage
+
+```{r}
+#| echo: false
+#| warning: false
+
+df_2 <- read.csv("./metadata/meta_data_all_distance.csv")
+
+df_100 <- df_2%>%
+  filter(dist==240)%>% # filter elasticitlt at appropriate distance
+  ungroup()%>%
+  mutate(obsid = row_number())%>%
+  group_by(study_name)%>% # create cluster only based on unique study
+  mutate(cluster_id = cur_group_id())%>%
+  ungroup()%>%
+  mutate(vi = 1/sampsize)%>% # define proxy of variance as inverse sample size
+  mutate(vi_log = 1/log(sampsize))%>% # define proxy of variance as inverse log(sample size)
+  group_by(cluster_id) %>%
+  mutate(count = n())%>% # 
+  mutate(w_1 = (1/count))%>% # define first weight - cluster weight based on the number of observations within cluster
+  mutate(log_ss = log(sampsize))%>%
+  mutate(log_ss_within_clus = sum(log_ss))%>% # for cluster sample size weight - sum sample size withi cluster
+  mutate(w_2 = log(sampsize)/log_ss_within_clus)%>% # weight define as ratio between log(sample size)/log(sum of sample size within cluster)
+  ungroup()
+
+
+df_400 <- df_2%>%
+  filter(dist==740)%>% # filter elasticitlt at appropriate distance
+  mutate(obsid = row_number())%>%
+  group_by(study_name)%>%  # create cluster only based on unique study
+  mutate(cluster_id = cur_group_id())%>%
+  ungroup()%>%
+  mutate(vi = 1/sampsize)%>% # define proxy of variance as inverse sample size
+  mutate(vi_log = 1/log(sampsize))%>% # define proxy of variance as inverse log(sample size)
+  group_by(cluster_id) %>%
+  mutate(count = n())%>%
+  mutate(w_1 = (1/count))%>% # define first weight - cluster weight based on the number of observations within cluster
+  mutate(log_ss = log(sampsize))%>%
+  mutate(log_ss_within_clus = sum(log_ss))%>% # for cluster sample size weight - sum sample size withi cluster
+  mutate(w_2 = log(sampsize)/log_ss_within_clus)%>% # weight define as ratio between log(sample size)/log(sum of sample size within cluster)
+  ungroup()
+
+
+panels <- list(
+  "Waterfront distance-100m" = list(
+    "Unweighted" = rma(yi = elast, vi=vi, data=df_100, method="EE", weighted=FALSE, level = 95),
+    "Cluster weighted " = rma(yi = elast, vi=vi, data=df_100, method="EE",weighted=T,weights = w_1, level = 95),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= rma(yi = cw_elast, vi, data=df_wf, method="EE",weighted=T, level = 95),
+    "Cluster sample size weight"= rma(yi = elast, vi=vi, data=df_100, method="EE",weighted=T,weights =w_2, level = 95),
+    #"Random effect (sample size variance)"= rma.mv(yi = cw_elast, vi, random = ~ 1 | cluster_id/obsid, data=df_wf),
+    "Random effect (log(sample size variance))"= rma.mv(yi = elast, vi, random = ~ 1 | cluster_id/obsid, data=df_100)
+    
+  ),
+  
+  "Waterfront distance-400m" = list(
+    "Unweighted" = rma(yi = elast, vi=vi, data=df_400, method="EE", weighted=FALSE, level = 95),
+    "Cluster weighted " = rma(yi = elast, vi=vi, data=df_400, method="EE",weighted=T,weights = w_1, level = 95),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= rma(yi = cw_elast, vi, data=df_nwf, method="EE",weighted=T, level = 95),
+    "Cluster sample size weight"= rma(yi = elast, vi=vi, data=df_400, method="EE",weighted=T,weights = w_2, level = 95),
+    #"Random effect (sample size variance)"= rma.mv(yi = cw_elast, vi, random = ~ 1 | cluster_id/obsid, data=df_nwf),
+    "Random effect (log(sample size variance))"= rma.mv(yi = elast, vi, random = ~ 1 | cluster_id/obsid, data=df_400, control=list(rel.tol=1e-8))
+  )
+  )
+
+
+panels_robu <- list(
+  "Waterfront distance-100m" = list(
+    "Unweighted" = robust(panels$`Waterfront distance-100m`$`Unweighted`, cluster = obsid),
+    "Cluster weighted " = robust(panels$`Waterfront distance-100m`$`Cluster weighted `, cluster = cluster_id),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= robust(panels$Waterfront$`Fixed effect - Cluster weighted - Varance Adjusted (sample size)`, cluster = cluster_id),
+    "Cluster sample size weight"= robust(panels$`Waterfront distance-100m`$`Cluster sample size weight`, cluster = cluster_id),
+    #"Random effect (sample size variance)"= robust(panels$Waterfront$`Random effect (sample size variance)`, cluster = cluster_id),
+    "Random effect "= robust(panels$`Waterfront distance-100m`$`Random effect (log(sample size variance))`, cluster = cluster_id)
+  ),
+  "Waterfront distance-400m" = list(
+    "Unweighted" =robust(panels$`Waterfront distance-400m`$`Unweighted`, cluster = obsid),
+    "Cluster weighted " = robust(panels$`Waterfront distance-400m`$`Cluster weighted `, cluster = cluster_id),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= robust(panels$`Non-waterfront`$`Fixed effect - Cluster weighted - Varance Adjusted (sample size)`, cluster = cluster_id),
+    "Cluster sample size weight"= robust(panels$`Waterfront distance-400m`$`Cluster sample size weight`, cluster = cluster_id),
+    #"Random effect (sample size variance)"= robust(panels$`Non-waterfront`$`Random effect (sample size variance)`, cluster = cluster_id),
+    "Random effect"= robust(panels$`Waterfront distance-400m`$`Random effect (log(sample size variance))`, cluster = cluster_id)
+    
+  )
+)
+
+
+
+f <- function(x) format(round(x, 3), big.mark=",")
+
+
+gm <- list(
+  list("raw" = "nobs", "clean" = "Num. of Obs.", "fmt" = f)
+)
+
+
+modelsummary(
+  panels_robu,
+  shape = "rbind",
+  stars = TRUE, gof_map = gm)
+
+
+
+
+```
+
+Now our mean elasticity for waterfron distacne bin is quite allign with Guignet et al. 2022, but our near waterfront distance bin mean elasticity is quite higher comapred to Guignet et al. 2022.
+
+This is largely because of the meta observations from Wolf et al. 2022 which has compartively larger elasticity estimation. And aslo based on their model specification, which interact WQ with waterfront dummy valriable (500 meters) the elasticity measures remain constant upto 500 meters. So when we move from elasticity estimations at 100 meters (waterfront) to elasticity estimations at 400 meters (near waterfront) some meta observations droppped but elasticiry estimations from Wolf et al 2022 remain there.
+
+One option to align our results with Guignet's estimation is to redefine the buffers. For example, if we estimate the mean elasticity for the near waterfront distance bin with elasticities estimated at 600 meters, the results are as follows:
+
+\newpage
+
+```{r}
+#| echo: false
+#| warning: false
+
+df_2 <- read.csv("./metadata/meta_data_all_distance.csv")
+
+df_200 <- df_2%>%
+  filter(dist==240)%>% # filter elasticitlt at appropriate distance
+  ungroup()%>%
+  mutate(obsid = row_number())%>%
+  group_by(study_name)%>% # create cluster only based on unique study
+  mutate(cluster_id = cur_group_id())%>%
+  ungroup()%>%
+  mutate(vi = 1/sampsize)%>% # define proxy of variance as inverse sample size
+  mutate(vi_log = 1/log(sampsize))%>% # define proxy of variance as inverse log(sample size)
+  group_by(cluster_id) %>%
+  mutate(count = n())%>% # 
+  mutate(w_1 = (1/count))%>% # define first weight - cluster weight based on the number of observations within cluster
+  mutate(log_ss = log(sampsize))%>%
+  mutate(log_ss_within_clus = sum(log_ss))%>% # for cluster sample size weight - sum sample size withi cluster
+  mutate(w_2 = log(sampsize)/log_ss_within_clus)%>% # weight define as ratio between log(sample size)/log(sum of sample size within cluster)
+  ungroup()
+
+
+df_600 <- df_2%>%
+  filter(dist==600)%>% # filter elasticitlt at appropriate distance
+  mutate(obsid = row_number())%>%
+  group_by(study_name)%>%  # create cluster only based on unique study
+  mutate(cluster_id = cur_group_id())%>%
+  ungroup()%>%
+  mutate(vi = 1/sampsize)%>% # define proxy of variance as inverse sample size
+  mutate(vi_log = 1/log(sampsize))%>% # define proxy of variance as inverse log(sample size)
+  group_by(cluster_id) %>%
+  mutate(count = n())%>%
+  mutate(w_1 = (1/count))%>% # define first weight - cluster weight based on the number of observations within cluster
+  mutate(log_ss = log(sampsize))%>%
+  mutate(log_ss_within_clus = sum(log_ss))%>% # for cluster sample size weight - sum sample size withi cluster
+  mutate(w_2 = log(sampsize)/log_ss_within_clus)%>% # weight define as ratio between log(sample size)/log(sum of sample size within cluster)
+  ungroup()
+
+
+panels <- list(
+  "Waterfront distance-200m" = list(
+    "Unweighted" = rma(yi = elast, vi=vi, data=df_200, method="EE", weighted=FALSE, level = 95),
+    "Cluster weighted " = rma(yi = elast, vi=vi, data=df_200, method="EE",weighted=T,weights = w_1, level = 95),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= rma(yi = cw_elast, vi, data=df_wf, method="EE",weighted=T, level = 95),
+    "Cluster sample size weight"= rma(yi = elast, vi=vi, data=df_200, method="EE",weighted=T,weights =w_2, level = 95),
+    #"Random effect (sample size variance)"= rma.mv(yi = cw_elast, vi, random = ~ 1 | cluster_id/obsid, data=df_wf),
+    "Random effect (log(sample size variance))"= rma.mv(yi = elast, vi, random = ~ 1 | cluster_id/obsid, data=df_200)
+    
+  ),
+  
+  "Waterfront distance-600m" = list(
+    "Unweighted" = rma(yi = elast, vi=vi, data=df_600, method="EE", weighted=FALSE, level = 95),
+    "Cluster weighted " = rma(yi = elast, vi=vi, data=df_600, method="EE",weighted=T,weights = w_1, level = 95),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= rma(yi = cw_elast, vi, data=df_nwf, method="EE",weighted=T, level = 95),
+    "Cluster sample size weight"= rma(yi = elast, vi=vi, data=df_600, method="EE",weighted=T,weights = w_2, level = 95),
+    #"Random effect (sample size variance)"= rma.mv(yi = cw_elast, vi, random = ~ 1 | cluster_id/obsid, data=df_nwf),
+    "Random effect (log(sample size variance))"= rma.mv(yi = elast, vi, random = ~ 1 | cluster_id/obsid, data=df_600, control=list(rel.tol=1e-8))
+  )
+  )
+
+
+panels_robu <- list(
+  "Waterfront distance-200m" = list(
+    "Unweighted" = robust(panels$`Waterfront distance-200m`$`Unweighted`, cluster = obsid),
+    "Cluster weighted " = robust(panels$`Waterfront distance-200m`$`Cluster weighted `, cluster = cluster_id),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= robust(panels$Waterfront$`Fixed effect - Cluster weighted - Varance Adjusted (sample size)`, cluster = cluster_id),
+    "Cluster sample size weight"= robust(panels$`Waterfront distance-200m`$`Cluster sample size weight`, cluster = cluster_id),
+    #"Random effect (sample size variance)"= robust(panels$Waterfront$`Random effect (sample size variance)`, cluster = cluster_id),
+    "Random effect "= robust(panels$`Waterfront distance-200m`$`Random effect (log(sample size variance))`, cluster = cluster_id)
+  ),
+  "Waterfront distance-600m" = list(
+    "Unweighted" =robust(panels$`Waterfront distance-600m`$`Unweighted`, cluster = obsid),
+    "Cluster weighted " = robust(panels$`Waterfront distance-600m`$`Cluster weighted `, cluster = cluster_id),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= robust(panels$`Non-waterfront`$`Fixed effect - Cluster weighted - Varance Adjusted (sample size)`, cluster = cluster_id),
+    "Cluster sample size weight"= robust(panels$`Waterfront distance-600m`$`Cluster sample size weight`, cluster = cluster_id),
+    #"Random effect (sample size variance)"= robust(panels$`Non-waterfront`$`Random effect (sample size variance)`, cluster = cluster_id),
+    "Random effect"= robust(panels$`Waterfront distance-600m`$`Random effect (log(sample size variance))`, cluster = cluster_id)
+    
+  )
+)
+
+
+
+f <- function(x) format(round(x, 3), big.mark=",")
+
+
+gm <- list(
+  list("raw" = "nobs", "clean" = "Num. of Obs.", "fmt" = f)
+)
+
+
+modelsummary(
+  panels_robu,
+  shape = "rbind",
+  stars = TRUE, gof_map = gm)
+
+
+
+
+```
+
+If we redefine the buffers, the results change, especially for the near waterfront. So, which two distance buffers should we go forward with? Hopefully, the image showing how elasticity varies with distance can be useful.
+
+As we discussed with Dr. Patrick regarding comparing the weights, I have extracted the weights I used in the fixed effect models. We need to focus more on the cluster sample size weight (w_2). One thing to consider is whether it gives higher weights to studies with larger sample sizes compared to those with smaller sample sizes.
+
+Currently, this will not happen as we define the existing cluster sample size weight scheme (w_2) within a cluster, where weights need to be equal to one within each cluster. So, in this setup, a unique study with a smaller sample size may get higher weights compared to a study with a larger sample size if there are fewer meta observations within the cluster. These observations are assigned higher weights compared to observations from another cluster with a larger sample size and a higher number of meta observations. I think this is appropriate if we want to assign each study/cluster the same weight (=1).
+
+```{r}
+#| echo: false
+#| warning: false
+
+df_filter <- df_200%>%
+  select(study_name,sampsize,count,w_1,w_2,elast)
+  #filter(study_name == "Mamun et al 2023" | study_name == "Wolf et al 2022")
+
+
+```
+
+With the intention of oavercoming this issue of study with lower sample size become dominant, I define cluster sample size weight schme (w_2) as:
+
+$w=\frac{log(SS_{idj})}{\sum_{j=1}^Jlog{\bar{ss_{dj}}}}$
+
+So in denominator we use the sum of the log of mean sample size (mean sample size within cluster) across all the clusters. In earlier we define this as sum of the sample size within the cluster where it leads to give equal weight across the cluster (=1). But here since we compare the each sample size with the average sample size acorss all the observations/clusters it assign comparative weights acrsoss the cluster. BUT in here it does not assign equal weight to each cluster
+
+```{r}
+#| echo: false
+#| warning: false
+
+df_2 <- read.csv("./metadata/meta_data_all_distance.csv")
+
+df_200 <- df_2%>%
+  filter(dist==240)%>% # filter elasticitlt at appropriate distance
+  #filter(study_name != "Wolf et al 2022")%>%
+  ungroup()%>%
+  mutate(obsid = row_number())%>%
+  group_by(study_name,region)%>% # create cluster only based on unique study
+  mutate(cluster_id = cur_group_id())%>%
+  ungroup()%>%
+  mutate(vi = 1/sampsize)%>% # define proxy of variance as inverse sample size
+  mutate(vi_log = 1/log(sampsize))%>% # define proxy of variance as inverse log(sample size)
+  group_by(cluster_id) %>%
+  mutate(count = n())%>% # 
+  mutate(w_1 = (1/count))%>% # define first weight - cluster weight based on the number of observations within cluster
+  mutate(log_ss = log(sampsize))%>%
+  mutate(log_ss_within_clus = sum(log_ss))%>% # for cluster sample size weight - sum sample size withi cluster
+  mutate(w_2 = log(sampsize)/log_ss_within_clus)%>% # weight define as ratio between log(sample size)/log(sum of sample size within cluster)
+  mutate(ave_ss_wt_clus = mean(sampsize))%>% #find average sample size within cluster
+  ungroup()%>%
+  mutate(log_ave_ss_wt_clus = log(ave_ss_wt_clus))%>%
+  #mutate(ave_ss_acros_clus = sum(unique(ave_ss_wt_clus)))%>%# total sample size based on average sample size within a cluster
+  mutate(w_3 = log_ave_ss_wt_clus/sum(log_ave_ss_wt_clus))
+
+
+df_600 <- df_2%>%
+  filter(dist==740)%>% # filter elasticitlt at appropriate distance
+  mutate(obsid = row_number())%>%
+  group_by(study_name,region)%>%  # create cluster only based on unique study
+  mutate(cluster_id = cur_group_id())%>%
+  ungroup()%>%
+  mutate(vi = 1/sampsize)%>% # define proxy of variance as inverse sample size
+  mutate(vi_log = 1/log(sampsize))%>% # define proxy of variance as inverse log(sample size)
+  group_by(cluster_id) %>%
+  mutate(count = n())%>%
+  mutate(w_1 = (1/count))%>% # define first weight - cluster weight based on the number of observations within cluster
+  mutate(log_ss = log(sampsize))%>%
+  mutate(log_ss_within_clus = sum(log_ss))%>% # for cluster sample size weight - sum sample size withi cluster
+  mutate(w_2 = log(sampsize)/log_ss_within_clus)%>% # weight define as ratio between log(sample size)/log(sum of sample size within cluster)
+  mutate(ave_ss_wt_clus = mean(sampsize))%>% #find average sample size within cluster
+  ungroup()%>%
+  mutate(log_ave_ss_wt_clus = log(ave_ss_wt_clus))%>%
+  #mutate(ave_ss_acros_clus = sum(unique(ave_ss_wt_clus)))%>%# total sample size based on average sample size within a cluster
+  mutate(w_3 = log_ave_ss_wt_clus/sum(log_ave_ss_wt_clus))
+  
+
+
+panels <- list(
+  "Waterfront distance-200m" = list(
+    "Unweighted" = rma(yi = elast, vi=vi, data=df_200, method="EE", weighted=FALSE, level = 95),
+    "Cluster weighted " = rma(yi = elast, vi=vi, data=df_200, method="EE",weighted=T,weights = w_1, level = 95),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= rma(yi = cw_elast, vi, data=df_wf, method="EE",weighted=T, level = 95),
+    "Cluster sample size weight"= rma(yi = elast, vi=vi, data=df_200, method="EE",weighted=T,weights =w_2, level = 95),
+    #"Random effect (sample size variance)"= rma.mv(yi = cw_elast, vi, random = ~ 1 | cluster_id/obsid, data=df_wf),
+    "Random effect (log(sample size variance))"= rma.mv(yi = elast, vi, random = ~ 1 | cluster_id/obsid, data=df_200)
+    
+  ),
+  
+  "Waterfront distance-600m" = list(
+    "Unweighted" = rma(yi = elast, vi=vi, data=df_600, method="EE", weighted=FALSE, level = 95),
+    "Cluster weighted " = rma(yi = elast, vi=vi, data=df_600, method="EE",weighted=T,weights = w_1, level = 95),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= rma(yi = cw_elast, vi, data=df_nwf, method="EE",weighted=T, level = 95),
+    "Cluster sample size weight"= rma(yi = elast, vi=vi, data=df_600, method="EE",weighted=T,weights = w_2, level = 95),
+    #"Random effect (sample size variance)"= rma.mv(yi = cw_elast, vi, random = ~ 1 | cluster_id/obsid, data=df_nwf),
+    "Random effect (log(sample size variance))"= rma.mv(yi = elast, vi, random = ~ 1 | cluster_id/obsid, data=df_600, control=list(rel.tol=1e-8))
+  )
+  )
+
+
+panels_robu <- list(
+  "Waterfront distance-200m" = list(
+    "Unweighted" = robust(panels$`Waterfront distance-200m`$`Unweighted`, cluster = obsid),
+    "Cluster weighted " = robust(panels$`Waterfront distance-200m`$`Cluster weighted `, cluster = cluster_id),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= robust(panels$Waterfront$`Fixed effect - Cluster weighted - Varance Adjusted (sample size)`, cluster = cluster_id),
+    "Cluster sample size weight"= robust(panels$`Waterfront distance-200m`$`Cluster sample size weight`, cluster = cluster_id),
+    #"Random effect (sample size variance)"= robust(panels$Waterfront$`Random effect (sample size variance)`, cluster = cluster_id),
+    "Random effect "= robust(panels$`Waterfront distance-200m`$`Random effect (log(sample size variance))`, cluster = cluster_id)
+  ),
+  "Waterfront distance-600m" = list(
+    "Unweighted" =robust(panels$`Waterfront distance-600m`$`Unweighted`, cluster = obsid),
+    "Cluster weighted " = robust(panels$`Waterfront distance-600m`$`Cluster weighted `, cluster = cluster_id),
+    #"Fixed effect - Cluster weighted - Varance Adjusted (sample size)"= robust(panels$`Non-waterfront`$`Fixed effect - Cluster weighted - Varance Adjusted (sample size)`, cluster = cluster_id),
+    "Cluster sample size weight"= robust(panels$`Waterfront distance-600m`$`Cluster sample size weight`, cluster = cluster_id),
+    #"Random effect (sample size variance)"= robust(panels$`Non-waterfront`$`Random effect (sample size variance)`, cluster = cluster_id),
+    "Random effect"= robust(panels$`Waterfront distance-600m`$`Random effect (log(sample size variance))`, cluster = cluster_id)
+    
+  )
+)
+
+
+
+f <- function(x) format(round(x, 3), big.mark=",")
+
+
+gm <- list(
+  list("raw" = "nobs", "clean" = "Num. of Obs.", "fmt" = f)
+)
+
+
+modelsummary(
+  panels_robu,
+  shape = "rbind",
+  stars = TRUE, gof_map = gm)
+
+
+
+
+```
+
+To check the weights, I derived the following data frame. By comparing w_3 (the new weight scheme), we can see that it fulfills our requirement of assigning higher weights to larger sample sizes by considering the sample size across all clusters. However in here each cluster/study assign different weight overall.
+
+```{r}
+#| echo: false
+#| warning: false
+
+df_filter <- df_200%>%
+  select(study_name,sampsize,count,w_1,w_2,w_3,elast,sampsize,log_ss_within_clus,ave_ss_wt_clus,log_ave_ss_wt_clus)
+  #filter(study_name == "Mamun et al 2023" | study_name == "Wolf et al 2022")
+
+
+```

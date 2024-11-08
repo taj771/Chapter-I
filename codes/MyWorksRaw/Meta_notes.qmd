@@ -1,0 +1,22 @@
+---
+title: "Meta Notes"
+author: "TJ Pat"
+format: html
+editor: visual
+---
+
+## Weighting Schemes
+
+01. Unweight 
+
+$$
+\hat\epsilon = {\epsilon}_i + e_i
+$$
+02.	Cluster weight – define cluster as unique study+geog
+
+$$
+\hat\epsilon = \frac{1/3} 
+$$
+
+
+

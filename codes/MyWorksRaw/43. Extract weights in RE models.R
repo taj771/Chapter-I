@@ -15,7 +15,7 @@ df <- df%>%
 
 wf.re <- rma.mv(yi = wqelast, vi, random = ~ 1 | cluster/obsid, data=df)
 
-re_weight <- weights(wf.re, type="rowsum")[1:403]%>%
+re_weight <- weights(wf.re, type="rowsum")[1:513]%>%
   as.data.frame()%>%
   mutate(id = row_number())%>%
   rename(re_w = ".")

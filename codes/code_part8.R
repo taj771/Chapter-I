@@ -109,9 +109,11 @@ df <- rbind(df_250, df_750)%>%
 reg1 <- rma.mv(yi=elast, vi_log, mods = ~ waterfront+avgwqvar, random = ~1| cluster_id/obsid,verbose=TRUE, data=df,control=list(rel.tol=1e-8), digits=3)
 
 
-reg2 <- rma.mv(yi=elast, vi_log, mods = ~ waterfront+avgwqvar+fun_loglin+fun_linlog+fun_doblog, random = ~1| cluster_id/obsid,verbose=TRUE, data=df,control=list(rel.tol=1e-8), digits=3)
+reg2 <- rma.mv(yi=elast, vi_log, mods = ~ waterfront+can+avgwqvar, random = ~ 1 | cluster_id/obsid, verbose=TRUE,  data=df, digits=3)
 
-reg3 <- rma.mv(yi=elast, vi_log, mods = ~ waterfront+can+fun_loglin+fun_linlog+fun_doblog+avgwqvar, random = ~ 1 | cluster_id/obsid, verbose=TRUE,  data=df, digits=3)
+
+reg3 <- rma.mv(yi=elast, vi_log, mods = ~ waterfront+northeast+midwest+south+west+multireg+avgwqvar, 
+               random = ~ 1|cluster_id/obsid,verbose=TRUE,data=df,control=list(rel.tol=1e-8) ,digits=3)
 
 reg4 <- rma.mv(yi=elast, vi_log, mods = ~ waterfront+northeast+midwest+south+west+multireg+fun_loglin+fun_linlog+fun_doblog+avgwqvar, 
                random = ~ 1|cluster_id/obsid,verbose=TRUE,data=df,control=list(rel.tol=1e-8) ,digits=3)
@@ -130,18 +132,12 @@ models <- list(
 )
 
 
+
 # Model summary - table 3
 
 
 cm <- c('waterfront'='Waterfront',
         'avgwqvar'='Avg.Secchi Depth',
-        'fun_loglin'='Functional form: log-lin',
-        'fun_linlog' = 'Finctional form: lin-log',
-        'fun_doblog' = "Functional form: log-log",
-        'fun_linear' = 'Functional form: linear',
-        'funcformlin-log' = 'Finctional form: lin-log',
-        'funcformlinear' ='Functional form: linear',
-        'funcformlog-lin' = 'Functional form: log-lin',
         "can" = "Canada",
         'west'='West',
         'midwest'='Midwest',
@@ -149,6 +145,13 @@ cm <- c('waterfront'='Waterfront',
         'south'='South',
         'multireg'='Multi-regional',
         'canada'='Canada',
+        'fun_loglin'='Functional form: log-lin',
+        'fun_linlog' = 'Finctional form: lin-log',
+        'fun_doblog' = "Functional form: log-log",
+        'fun_linear' = 'Functional form: linear',
+        'funcformlin-log' = 'Finctional form: lin-log',
+        'funcformlinear' ='Functional form: linear',
+        'funcformlog-lin' = 'Functional form: log-lin',
         'time'='Time trend',
         'vi'='Variance',
         'intercept'= 'Constant'
@@ -158,7 +161,6 @@ modelsummary(
   models,
   stars = TRUE,
   coef_map = cm)
-
 
 modelsummary(
   models,

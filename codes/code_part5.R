@@ -5,19 +5,6 @@
 # clear memory
 rm(list = ls())
 
-# library
-
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(
-  dplyr,
-  tidyverse,
-  ggplot2,
-  tidyr
-)
-
-
-
-
 
 # Withould distance involvement 
 
@@ -489,7 +476,7 @@ df1$model <- as.numeric(as.character(df1$model))
 df1 <- df1%>%
   left_join(df_studname)
 
-library(stringr)
+
 
 df1[c('model_name', 'study_name')] <- str_split_fixed(df1$study_name, '-', 2)
 
@@ -800,7 +787,7 @@ df2$model <- as.numeric(as.character(df2$model))
 df2 <- df2%>%
   left_join(df_studname)
 
-library(stringr)
+
 
 df2[c('model_name', 'study_name')] <- str_split_fixed(df2$study_name, '-', 2)
 
@@ -1002,7 +989,7 @@ df3$model <- as.numeric(as.character(df3$model))
 df3 <- df3%>%
   left_join(df_studname)
 
-library(stringr)
+
 
 df3[c('model_name', 'study_name')] <- str_split_fixed(df3$study_name, '-', 2)
 
@@ -2394,7 +2381,7 @@ df4$model <- as.numeric(as.character(df4$model))
 df4 <- df4%>%
   left_join(df_studname)
 
-library(stringr)
+
 
 df4[c('model_name', 'study_name')] <- str_split_fixed(df4$study_name, '-', 2)
 
@@ -3056,7 +3043,7 @@ p_distdum <- ggplot(df4, aes(dist, elast)) +
   theme(legend.text=element_text(size=11))
 
 
-library(ggpubr)
+
 
 plotlist<- list(p_no_dist,p_linear,p_distdum,p_lindist_dumdist)
 

@@ -7,35 +7,8 @@ rm(list = ls())
 #           : https://www.jepusto.com/robust-meta-analysis-1/
 #           : https://cran.r-project.org/web/packages/robumeta/vignettes/robumetaVignette.pdf
 ##############################################################################
-
-
-
-
-## Load packages
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(
-  dplyr,
-  meta,
-  metafor,
-  tidyverse,
-  robumeta,
-  clubSandwich,
-  pandoc,
-  tinytex,
-  modelsummary,
-  kableExtra,
-  fixest,
-  viridis,
-  ipsum
-)
-
-library(dplyr)
-library(meta)
-library(metafor)
-library(tidyverse)
-library(robumeta)
-library(clubSandwich)
-library(modelsummary)
+# clear memory
+rm(list = ls())
 
 # load data - with outliers 
 df_250 <- read.csv("./metadata/meta_data_distance_250m.csv")%>%

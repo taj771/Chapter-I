@@ -1,10 +1,7 @@
 #This code replicate the Figure 1 in manuscript. 
 # We use the derived elasticities based on fuctional forms and distance interaction if there are any
-
-
-library(ggplot2)
-library(viridis)
-library(hrbrthemes)
+# clear memory
+rm(list = ls())
 
 df <- read.csv("./metadata/meta_data_all_distance.csv")%>%
   filter(study_name != "Moore et al 2020")%>% # outliers

@@ -4,7 +4,6 @@
 # clear memory
 rm(list = ls())
 
-library(sf)
 
 #setwd(".~/CloudStorage/OneDrive-UniversityofSaskatchewan/Chapter I old/meta_analysis/")               # Tim's working directory (Mac)
 

@@ -2,7 +2,6 @@
 
 # clear memory
 rm(list = ls())
-library(dplyr)
 
 
 # load data - for processd data for 250 meters - use for mean elasticity
@@ -77,7 +76,7 @@ table <- df%>%
   left_join(mu_e)%>%
   distinct(study_name, .keep_all = T)
 
-library(xtable)
+
 
 print(xtable(table, type = "latex"), file = "./results/Tables/Table1.tex")
 

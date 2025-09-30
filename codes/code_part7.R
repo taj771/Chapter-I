@@ -6,16 +6,6 @@
 rm(list = ls())
 
 
-## Load packages
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(
-  metafor,
-  dplyr,
-  tidyverse,
-  modelsummary
-)
-
-
 #df_2 <- read.csv("./metadata/meta_data_all_distance.csv")
 
 df_250 <- read.csv("./metadata/meta_data_distance_250m.csv")%>%

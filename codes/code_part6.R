@@ -4,10 +4,6 @@
 # clear memory
 rm(list = ls())
 
-library(dplyr)
-library(metafor)  # Ensure you have the metafor package for the rma.mv function
-library(tidyr)   # For the rownames_to_column function
-
 
 df <- read_csv("./metadata/Meta_data_at_50m_distcal_elast.csv") %>%
   rename(distance = x) %>%

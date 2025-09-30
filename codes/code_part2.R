@@ -3,26 +3,11 @@
 # clear memory
 rm(list = ls())
 
-## Load packages
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(
-  dplyr,
-  meta,
-  metafor,
-  tidyverse,
-  robumeta,
-  clubSandwich,
-  pandoc,
-  tinytex,
-  modelsummary,
-  kableExtra
-)
-
 
 df_2 <- read.csv("./metadata/Meta_data_at_50m_distcal_elast.csv")
 
 df_wf <- df_2%>%
-  filter(x==250)%>% # filter elasticitlt at appropriate distance
+  filter(x==250)%>% # filter elasticity at appropriate distance
   #filter(study_name != "Wolf et al 2022")%>%
   ungroup()%>%
   mutate(obsid = row_number())%>%

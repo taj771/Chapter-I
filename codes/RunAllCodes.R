@@ -1,6 +1,15 @@
 # Chapter I - Water quality and propery values: A meta-analysis and Canadian national benefit assesmsnr
 # Main results
 
+library(tidyverse)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(stringdist)
+
+
+
 #Derive elasticity measures based on primry study's estimations
 source("./codes/code_part1.R")
 

@@ -5,11 +5,6 @@
 # clear memory
 rm(list = ls())
 
-
-library(tidyverse)
-library(ggplot2)
-
-
 # Withould distance involvement.  #################################################
 
 # Define the range of x values
@@ -236,7 +231,6 @@ results <- results %>%
 # View results
 head(results)
 
-library(tidyr)
 
 # Assuming 'results' dataframe is already created as shown in the previous example
 results_nodist <- results %>%
@@ -1060,8 +1054,6 @@ df <- rbind(results_nodist,results_Distdum,results_linear,results_linearAndDistd
   rename(id=Function)
 
 
-library(dplyr)
-library(stringr)
 
 # Extract and mutate columns, including handling 'et al.'
 df <- df %>%
@@ -1088,11 +1080,6 @@ df1 <- read.csv("./metadata/Meta_dataset_water_clarity_TJ.csv")%>%
 
 df1$id <- paste(df1$study_name, "-", df1$model.name)
 
-
-
-# Load necessary libraries
-library(dplyr)
-library(stringdist)
 
 
 
